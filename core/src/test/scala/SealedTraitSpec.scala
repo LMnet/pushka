@@ -38,6 +38,20 @@ object SealedTraitSpec {
     @deprecated("Some message", "Today")
     case class Descendant(value: Int) extends Base
   }
+
+  // Nested companion objects
+
+  @pushka
+  sealed trait Event
+
+  object Event {
+    object Chat {
+      case class MessageSent(text: String) extends Event
+    }
+    object System {
+      case object Hello extends Event
+    }
+  }
 }
 
 class SealedTraitSpec extends FlatSpec with Matchers {
@@ -78,5 +92,12 @@ class SealedTraitSpec extends FlatSpec with Matchers {
 
   "Color" should "be read correctly" in {
     read[Color](Ast.Str("red")) shouldBe Color.Red
+  }
+
+  "Nested companion object which contain children of sealed trait" should "be processed" in {
+    read[Event](Ast.Str("hello")) shouldBe Event.System.Hello
+    write(Event.Chat.MessageSent("I am cow")) shouldBe {
+      Ast.Obj(Map("messageSent" → Ast.Str("I am cow")))
+    }
   }
 }

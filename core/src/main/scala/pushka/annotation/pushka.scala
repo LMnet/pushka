@@ -149,16 +149,21 @@ object pushkaMacro {
       val updatedBody = genUpdatedBody(Nil, body)
       
       val names: Seq[VariantName] = {
-        val list = (body: List[Tree]) collect {
-          case q"$mods object $n extends ..$p { ..$body }"
-            if checkBases(p) && mods.hasFlag(Flag.CASE) ⇒ Left(n)
-          case q"$mods class $n(..$fields) extends ..$p  { ..$body }"
-            if checkBases(p) && mods.hasFlag(Flag.CASE) ⇒ Right(n)
-        }                                            
+        def lookupNames(body: List[Tree]): List[VariantName] = {
+          body flatMap {
+            case q"$mods object $n extends ..$p { ..$body }"
+              if checkBases(p) && mods.hasFlag(Flag.CASE) ⇒ List(Left(n))
+            case q"$mods object $n extends ..$p { ..$body }"
+              if !mods.hasFlag(Flag.CASE) ⇒ lookupNames(body)
+            case q"$mods class $n(..$fields) extends ..$p  { ..$body }"
+              if checkBases(p) && mods.hasFlag(Flag.CASE) ⇒ List(Right(n))
+            case _ ⇒ Nil
+          }
+        }
         // Case classes are matched by variable pattern (see bellow)
-        // it disallow to match anything elese (SLS 8.1.1).
+        // it disallow to match anything else (SLS 8.1.1).
         // So we need to sort this list so that case objects stands in beginning
-        list.sortBy(_.isRight).toSeq
+        lookupNames(body).sortBy(_.isRight).toSeq
       }
       
       // Matching on pushka.Ast to find right reader
